@@ -9,6 +9,7 @@ exclude = [
 ]
 keywords = ["twine", "gamedev"]
 categories = ["game-development"]
+repository = "https://github.com/tareksander/twine-rs"
 
 [dependencies]
 

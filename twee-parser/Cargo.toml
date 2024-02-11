@@ -1,6 +1,6 @@
 [package]
 name = "twee-parser"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license-file = "../LICENSE"
 description = "A parser for Twine stories"
@@ -11,6 +11,7 @@ exclude = [
 ]
 keywords = ["twine", "twee", "twee-v3"]
 categories = ["parser-implementations"]
+repository = "https://github.com/tareksander/twine-rs"
 
 [dependencies]
 
