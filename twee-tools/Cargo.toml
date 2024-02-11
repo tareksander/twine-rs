@@ -1,0 +1,21 @@
+[package]
+name = "twee-tools"
+version = "0.1.0"
+edition = "2021"
+license-file = "../LICENSE"
+description = "A compiler for Twine stories"
+exclude = [
+    
+]
+keywords = ["twine", "gamedev"]
+categories = ["game-development"]
+
+[dependencies]
+
+twee-parser = { path = "../twee-parser", features = ["html"] }
+
+
+[[bin]]
+name = "twee"
+path = "src/main.rs"
+

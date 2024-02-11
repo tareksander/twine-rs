@@ -1,0 +1,31 @@
+:: StoryTitle
+Test Story
+
+
+:: StoryData
+{
+  "ifid": "38784405-785C-4C61-A256-67CC85AF2938",
+  "format": "SugarCube",
+  "format-version": "2.36.1",
+  "start": "First Passage",
+  "tag-colors": {
+    "T2": "red"
+  },
+  "zoom": 1
+}
+
+
+:: First Passage {"position":"700,250","size":"100,100"}
+\:: passage escape test
+
+
+:: Tag Test {"position":"700,100","size":"100,100"}
+
+
+
+:: Trailing Newline Test [T1\[\]\{\}|\\ T2] {"position":"825,250","size":"100,100"}
+a
+
+
+
+

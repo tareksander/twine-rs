@@ -1,0 +1,8 @@
+{
+    "files.watcherExclude": {
+        "twee-parse/test-data/*": true
+    },
+    "rust-analyzer.files.excludeDirs": [
+        "twee-parse/test-data/*"
+    ]
+}

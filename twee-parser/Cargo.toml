@@ -1,0 +1,24 @@
+[package]
+name = "twee-parser"
+version = "0.1.0"
+edition = "2021"
+license-file = "../LICENSE"
+description = "A parser for Twine stories"
+exclude = [
+    "test-data/*",
+    "examples/*.twee",
+    "examples/*.html",
+]
+keywords = ["twine", "twee", "twee-v3"]
+categories = ["parser-implementations"]
+
+[dependencies]
+
+serde = { version = "1.0.196", features = ["derive"] }
+serde_json = "1.0.113"
+regex = "1.10.3"
+#html5ever = {version = "0.26.0", optional = true }
+xmltree = { version = "0.10.3", optional = true }
+
+[features]
+html = ["dep:xmltree"]
