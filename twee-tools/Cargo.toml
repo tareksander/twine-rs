@@ -20,3 +20,5 @@ twee-parser = { path = "../twee-parser", features = ["html"] }
 name = "twee"
 path = "src/main.rs"
 
+[package.metadata.docs.rs]
+all-features = true
