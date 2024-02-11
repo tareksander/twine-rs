@@ -1,8 +1,8 @@
 [package]
 name = "twee-parser"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
-license-file = "../LICENSE"
+license = "MPL-2.0"
 description = "A parser for Twine stories"
 exclude = [
     "test-data/*",

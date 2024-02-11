@@ -2,7 +2,7 @@
 name = "twee-tools"
 version = "0.1.0"
 edition = "2021"
-license-file = "../LICENSE"
+license = "MPL-2.0"
 description = "A compiler for Twine stories"
 exclude = [
     
