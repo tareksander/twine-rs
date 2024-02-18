@@ -1,6 +1,6 @@
 [package]
 name = "twee-tools"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MPL-2.0"
 description = "A compiler for Twine stories"
@@ -12,7 +12,7 @@ categories = ["game-development"]
 repository = "https://github.com/tareksander/twine-rs"
 
 [dependencies]
-twee-parser = { version = "0.1.4", path = "../twee-parser", features = ["html"] }
+twee-parser = { version = "0.1.5", path = "../twee-parser", features = ["html"] }
 clap = { version = "4.0", features = ["derive"] }
 notify = "6.1.1"
 toml = "0.8.10"
