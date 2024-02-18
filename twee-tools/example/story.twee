@@ -1,0 +1,14 @@
+:: StoryTitle
+Example
+
+:: StoryData
+{
+  "format": "SugarCube",
+  "format-version": "2.36.1",
+  "ifid": "CA6E06E-1C2C-C7E7-DBA-2442453AD6",
+  "start": "Start"
+}
+
+
+:: Start
+The start of your story.

@@ -5,20 +5,24 @@ edition = "2021"
 license = "MPL-2.0"
 description = "A compiler for Twine stories"
 exclude = [
-    
+    "example/*"
 ]
 keywords = ["twine", "gamedev"]
 categories = ["game-development"]
 repository = "https://github.com/tareksander/twine-rs"
 
 [dependencies]
-
-twee-parser = { path = "../twee-parser", features = ["html"] }
-
+twee-parser = { version = "0.1.4", path = "../twee-parser", features = ["html"] }
+clap = { version = "4.0", features = ["derive"] }
+notify = "6.1.1"
+toml = "0.8.10"
+anyhow = "1.0.79"
+thiserror = "1.0.56"
+rand = "0.8.5"
+serde = { version = "1.0.196", features = ["derive"] }
+serde_json = "1.0.113"
 
 [[bin]]
 name = "twee"
 path = "src/main.rs"
 
-[package.metadata.docs.rs]
-all-features = true
