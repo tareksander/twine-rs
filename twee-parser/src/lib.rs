@@ -8,7 +8,7 @@
 pub use serde_json;
 use serde_json::{Value, Map};
 
-/// An in-memory representaion of a Twine story.
+/// An in-memory representation of a Twine story.
 #[derive(Debug, Clone)]
 pub struct Story {
     /// The name of the story.
@@ -18,7 +18,7 @@ pub struct Story {
     /// The metadata.
     /// Please refer to the [specification](https://github.com/iftechfoundation/twine-specs/blob/master/twine-2-htmloutput-spec.md#story-data)
     /// for standard fields.  
-    /// To be searializable to HTML, the values have to be strings, except tags, which are supported specifically.
+    /// To be serializable to HTML, the values have to be strings, except tags, which are supported specifically.
     pub meta: Map<String, Value>,
 }
 
@@ -36,12 +36,14 @@ pub struct Passage {
 }
 
 /// Possible parsing errors.
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
     /// The xmltree library couldn't parse the data, or it doesn't have the right format.
+    #[error("Could not parse HTML: {0}")]
     #[cfg(feature = "html")]
     HTMLParseError(ParseError),
     /// No &lt;tw-storydata&gt; tag was found.
+    #[error("No tw-storydata tag found in HTML")]
     #[cfg(feature = "html")]
     HTMLStoryDataNotFound,
 }
@@ -68,6 +70,7 @@ pub enum Warning {
 }
 
 mod twee3;
+use thiserror::Error;
 pub use twee3::*;
 
 #[cfg(feature = "html")]

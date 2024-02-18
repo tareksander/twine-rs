@@ -11,7 +11,7 @@ enum PassageState {
 
 /// Parses Twee3 into a [Story].
 pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
-    let re = RegexBuilder::new("^::").multi_line(true).build().unwrap();
+    let re = RegexBuilder::new("^::[^\n]*\n").multi_line(true).build().unwrap();
     let mut warnings = vec![];
     let mut passages: Vec<Passage> = Vec::new();
     let mut start = 0;
@@ -20,76 +20,79 @@ pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
     let mut meta: &str = "{}";
     let mut title = String::new();
     let mut story_meta = None;
-    while let Some(a) = re.find_at(source, start) {
-        if start != 0 {
-            let name: String = name.iter().collect();
-            let name = name.trim().to_string();
-            if name.len() == 0 {
-                warnings.push(Warning::PassageNameMissing);
-            } else {
-                let mut content = source[start..(a.start())].to_string();
-                if content.starts_with("\\::") {
-                    content.remove(0);
-                }
-                match name.as_str() {
-                    "StoryTitle" => {
-                        if title.len() != 0 {
-                            warnings.push(Warning::PassageDuplicated("StoryTitle".to_string()));
+    fn handle_passage(warnings: &mut Vec<Warning>, title: &mut String, story_meta: &mut Option<Map<String, Value>>, passages: &mut Vec<Passage>, name: &str, content: &str, tags: &Vec<String>, meta: &str) {
+        if name.len() == 0 {
+            warnings.push(Warning::PassageNameMissing);
+        } else {
+            match name {
+                "StoryTitle" => {
+                    if title.len() != 0 {
+                        warnings.push(Warning::PassageDuplicated("StoryTitle".to_string()));
+                    }
+                    *title = content.trim().to_string();
+                },
+                "StoryData" => {
+                    if story_meta.is_some() {
+                        warnings.push(Warning::PassageDuplicated("StoryData".to_string()));
+                    }
+                    *story_meta = if let Ok(v) = serde_json::from_str(&content) {
+                        let v: Value = v;
+                        match v {
+                            Value::Object(o) => {
+                                Some(o)
+                            },
+                            _ => {
+                                warnings.push(Warning::StoryMetadataMalformed);
+                                Some(Map::new())
+                            }
                         }
-                        title = content.trim().to_string();
-                    },
-                    "StoryData" => {
-                        if story_meta.is_some() {
-                            warnings.push(Warning::PassageDuplicated("StoryData".to_string()));
+                    } else {
+                        warnings.push(Warning::StoryMetadataMalformed);
+                        Some(Map::new())
+                    };
+                },
+                _ => {
+                    let mut dup = false;
+                    for p in &mut *passages {
+                        if p.name == name {
+                            warnings.push(Warning::PassageDuplicated(p.name.clone()));
+                            dup = true;
+                            break;
                         }
-                        story_meta = if let Ok(v) = serde_json::from_str(meta) {
+                    }
+                    if ! dup {
+                        let meta = if let Ok(v) = serde_json::from_str(meta) {
                             let v: Value = v;
                             match v {
                                 Value::Object(o) => {
-                                    Some(o)
+                                    o
                                 },
                                 _ => {
-                                    warnings.push(Warning::StoryMetadataMalformed);
-                                    Some(Map::new())
+                                    warnings.push(Warning::PassageMetadataMalformed(name.to_string()));
+                                    Map::new()
                                 }
                             }
                         } else {
-                            warnings.push(Warning::StoryMetadataMalformed);
-                            Some(Map::new())
+                            warnings.push(Warning::PassageMetadataMalformed(name.to_string()));
+                            Map::new()
                         };
-                    },
-                    _ => {
-                        let mut dup = false;
-                        for p in &passages {
-                            if p.name == name {
-                                warnings.push(Warning::PassageDuplicated(p.name.clone()));
-                                dup = true;
-                                break;
-                            }
-                        }
-                        if ! dup {
-                            let meta = if let Ok(v) = serde_json::from_str(meta) {
-                                let v: Value = v;
-                                match v {
-                                    Value::Object(o) => {
-                                        o
-                                    },
-                                    _ => {
-                                        warnings.push(Warning::PassageMetadataMalformed(name.clone()));
-                                        Map::new()
-                                    }
-                                }
-                            } else {
-                                warnings.push(Warning::PassageMetadataMalformed(name.clone()));
-                                Map::new()
-                            };
-                            passages.push(Passage { name, tags: tags.clone(), meta, content: content.trim_end().to_string()});
-                        }
+                        passages.push(Passage { name: name.to_string(), tags: tags.clone(), meta, content: content.trim_end().to_string()});
                     }
                 }
             }
         }
-        start = a.end();
+    }
+    while let Some(a) = re.find_at(source, start) {
+        if start != 0 {
+            let name: String = name.iter().collect();
+            let name = name.trim().to_string();
+            let mut content = source[start..(a.start())].to_string();
+            if content.starts_with("\\::") {
+                content.remove(0);
+            }
+            handle_passage(&mut warnings, &mut title, &mut story_meta, &mut passages, &name, &content, &tags, meta);
+        }
+        start = a.start() + 2;
         name.clear();
         tags.clear();
         meta = "{}";
@@ -170,6 +173,19 @@ pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
         if meta.trim().len() == 0 {
             meta = "{}";
         }
+        start = a.end();
+    }
+    if ! name.is_empty() {
+        let name: String = name.iter().collect();
+        let name = name.trim().to_string();
+        let mut content = source[start..].to_string();
+        if content.starts_with("\\::") {
+            content.remove(0);
+        }
+        handle_passage(&mut warnings, &mut title, &mut story_meta, &mut passages, &name, &content, &tags, meta);
+    }
+    if title.is_empty() {
+        warnings.push(Warning::StoryTitleMissing);
     }
     return Ok((Story {
         title,
