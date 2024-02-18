@@ -7,7 +7,7 @@ use notify::Watcher;
 use rand::{RngCore, SeedableRng};
 use serde::Deserialize;
 use thiserror::Error;
-use twee_parser::{parse_archive, parse_html, parse_twee3, serde_json::{Map, Value}, serialize_html, serialize_twee3, Passage, Warning};
+use twee_parser::{parse_archive, parse_html, parse_twee3, serde_json::{Map, Value}, serialize_html, serialize_twee3, xmltree::EmitterConfig, Passage, Warning};
 
 const DEFAULT_CONFIG: &str = include_str!("../config.toml.default");
 const DEFAULT_TWEE: &str = include_str!("../story.twee.default");
@@ -360,7 +360,10 @@ fn build() -> Result {
         PathBuf::from(".").join(story.title.clone() + ".html")
     };
     let mut html: Vec<u8> = Vec::new();
-    serialize_html(&story).write(&mut html)?;
+    serialize_html(&story).write_with_config(&mut html, EmitterConfig {
+        normalize_empty_elements: false,
+        write_document_declaration: false,
+        ..Default::default()})?;
     let html = format.format_contents().replace("{{STORY_NAME}}", &story.title).replace("{{STORY_DATA}}", &String::from_utf8(html).unwrap());
     File::create(out)?.write_all(html.as_bytes())?;
     Ok(())

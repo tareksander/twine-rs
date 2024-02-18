@@ -2,6 +2,7 @@ use crate::*;
 
 pub use xmltree::{Element, XMLNode, ParseError};
 
+pub use xmltree;
 
 fn search_storydata(e: &Element) -> Option<Element> {
     if e.name == "tw-storydata" {
