@@ -3,7 +3,7 @@ use std::{fs::{read_dir, File, ReadDir}, io::{Read, Write}, path::{Path, PathBuf
 
 use anyhow::Ok;
 use clap::{Parser, Subcommand, ValueEnum};
-use notify::Watcher;
+use notify::{Event, Watcher};
 use rand::{RngCore, SeedableRng};
 use serde::Deserialize;
 use thiserror::Error;
@@ -285,7 +285,7 @@ fn search_twee(twees: &mut Vec<PathBuf>, dir: ReadDir) -> Result {
     Ok(())
 }
 
-fn build() -> Result {
+fn build() -> anyhow::Result<PathBuf> {
     if ! PathBuf::from("config.toml").exists() {
         return Err(Error::FileNotFound("config.toml".to_string()).into());
     }
@@ -314,7 +314,7 @@ fn build() -> Result {
             StoryFormat::from_name(s)?
         } else {
             println!("No story format");
-            return Ok(());
+            return Err(Error::UnknownStoryFormat("".to_string()).into());
         }
     };
     
@@ -365,14 +365,35 @@ fn build() -> Result {
         write_document_declaration: false,
         ..Default::default()})?;
     let html = format.format_contents().replace("{{STORY_NAME}}", &story.title).replace("{{STORY_DATA}}", &String::from_utf8(html).unwrap());
-    File::create(out)?.write_all(html.as_bytes())?;
-    Ok(())
+    File::create(out.clone())?.write_all(html.as_bytes())?;
+    Ok(out)
 }
 
 
 fn watch() -> Result {
-    build()?;
-    let mut w = notify::recommended_watcher(|_| build().unwrap())?;
+    let mut out = build()?.canonicalize()?;
+    let mut w = notify::recommended_watcher(move |e: std::result::Result<Event, notify::Error>| {
+        let event = e.unwrap();
+        if event.paths.iter().any(|p| {
+            if let std::result::Result::Ok(p) = p.canonicalize() {
+                p == out
+            } else {
+                false
+            }
+        }) {
+            return;
+        }
+        match event.kind {
+            notify::EventKind::Modify(m) => {
+                out = build().unwrap().canonicalize().unwrap();
+            },
+            notify::EventKind::Remove(r) => {
+                out = build().unwrap().canonicalize().unwrap();
+            },
+            _ => {}
+        }
+        
+    })?;
     w.configure(notify::Config::default().with_poll_interval(Duration::from_secs(1)))?;
     w.watch(&PathBuf::from("."), notify::RecursiveMode::Recursive)?;
     loop {}
@@ -389,7 +410,9 @@ fn main() -> Result {
         Command::Unpack { file, dir } => unpack(file, PathBuf::from(dir))?,
         Command::Decompile { file, out } => decompile(file, out)?,
         Command::Init { dir , format, title} => init(dir, format, title)?,
-        Command::Build => build()?,
+        Command::Build => {
+            build()?;
+        },
         Command::Watch => watch()?,
     }
     Ok(())
