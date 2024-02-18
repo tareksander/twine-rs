@@ -115,6 +115,7 @@ pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
                         continue;
                     }
                     if c == '{' {
+                        let i = start + i;
                         meta = &source[if let Some(newline) = source[i..].find("\n") {
                             i..(i + newline)
                         } else {
@@ -154,6 +155,7 @@ pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
                 },
                 PassageState::Between => {
                     if c == '{' {
+                        let i = start + i;
                         meta = &source[if let Some(newline) = source[i..].find("\n") {
                             i..(i + newline)
                         } else {
