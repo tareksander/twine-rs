@@ -1,11 +1,11 @@
 
-use std::{fs::File, io::{Read, Write}, path::PathBuf, sync::OnceLock, time::Duration};
+use std::{fs::File, io::{stderr, Read, Write}, path::PathBuf, sync::OnceLock, time::Duration};
 
 use anyhow::Ok;
 use clap::{Parser, Subcommand, ValueEnum};
 use notify::{Event, Watcher};
 use rand::{RngCore, SeedableRng};
-use twee_parser::{parse_archive, parse_html, parse_twee3, serde_json::Value, serialize_html, serialize_twee3, xmltree::EmitterConfig};
+use twee_parser::{parse_archive, parse_html, parse_twee3, serde_json::Value, serialize_html, serialize_twee3, xmltree::EmitterConfig, Story};
 
 const DEFAULT_CONFIG: &str = include_str!("../config.toml.default");
 const DEFAULT_TWEE: &str = include_str!("../story.twee.default");
@@ -122,6 +122,10 @@ enum Command {
         /// Enables the debug mode of the story format.
         #[arg(short, long)]
         debug: bool,
+        
+        /// Writes the HTML to standard output instead of the file in config.toml
+        #[arg(short, long)]
+        stdout: bool,
     },
     
     /// Builds the Story in the current directory on any changes.
@@ -220,7 +224,7 @@ fn init(dir: PathBuf, format: StoryFormat, title: String) -> Result {
         return Err(Error::DirNotFound(dir.to_string_lossy().to_string()).into());
     }
     if dir.join("config.toml").exists() {
-        println!("Project already initialized");
+        writeln!(stderr(), "Project already initialized")?;
         return Ok(());
     }
     let mut story = parse_twee3(DEFAULT_TWEE).unwrap().0;
@@ -255,7 +259,7 @@ fn build(debug: bool) -> anyhow::Result<PathBuf> {
         if let Some(Value::String(s)) = story.meta.get("format") {
             StoryFormat::from_name(s)?
         } else {
-            println!("No story format");
+            writeln!(stderr(), "No story format")?;
             return Err(Error::UnknownStoryFormat("".to_string()).into());
         }
     };
@@ -264,16 +268,19 @@ fn build(debug: bool) -> anyhow::Result<PathBuf> {
     } else {
         PathBuf::from(".").join(story.title.clone() + ".html")
     };
+    let html = build_html(format, &story)?;
+    File::create(out.clone())?.write_all(html.as_bytes())?;
+    Ok(out)
+}
+
+fn build_html(format: StoryFormat, story: &Story) -> anyhow::Result<String> {
     let mut html: Vec<u8> = Vec::new();
     serialize_html(&story).write_with_config(&mut html, EmitterConfig {
         normalize_empty_elements: false,
         write_document_declaration: false,
         ..Default::default()})?;
-    let html = format.format_contents().replace("{{STORY_NAME}}", &story.title).replace("{{STORY_DATA}}", &String::from_utf8(html).unwrap());
-    File::create(out.clone())?.write_all(html.as_bytes())?;
-    Ok(out)
+    Ok(format.format_contents().replace("{{STORY_NAME}}", &story.title).replace("{{STORY_DATA}}", &String::from_utf8(html).unwrap()))
 }
-
 
 fn watch(debug: bool) -> Result {
     let mut out = build(debug)?.canonicalize()?;
@@ -315,8 +322,25 @@ fn main() -> Result {
         Command::Unpack { file, dir } => unpack(file, PathBuf::from(dir))?,
         Command::Decompile { file, out } => decompile(file, out)?,
         Command::Init { dir , format, title} => init(dir, format, title)?,
-        Command::Build{debug} => {
-            build(debug)?;
+        Command::Build{debug, stdout} => {
+            if stdout {
+                if ! PathBuf::from("config.toml").exists() {
+                    return Err(Error::FileNotFound("config.toml".to_string()).into());
+                }
+                let config: Config = toml::from_str(&read_file("config.toml")?)?;
+                let story = build_story(&config, debug)?;
+                let format = {
+                    if let Some(Value::String(s)) = story.meta.get("format") {
+                        StoryFormat::from_name(s)?
+                    } else {
+                        writeln!(stderr(), "No story format")?;
+                        return Err(Error::UnknownStoryFormat("".to_string()).into());
+                    }
+                };
+                std::io::stdout().write_all(build_html(format, &story)?.as_bytes())?;
+            } else {
+                build(debug)?;
+            }
         },
         Command::Watch{debug} => watch(debug)?,
     }

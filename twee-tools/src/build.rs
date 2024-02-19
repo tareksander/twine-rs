@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::{Path, PathBuf}};
+use std::{fs::File, io::{stderr, Read, Write}, path::{Path, PathBuf}};
 
 use glob::MatchOptions;
 use serde::Deserialize;
@@ -37,15 +37,15 @@ pub(crate) fn read_file<P>(p: P) -> anyhow::Result<String>  where P: AsRef<Path>
 
 
 pub(crate) fn print_warning(w: Warning) {
-    print!("Warning: ");
+    writeln!(stderr(), "Warning: {}",
     match w {
-        Warning::StoryMetadataMalformed => println!("Story metadata is not valid JSON and has been discarded."),
-        Warning::StoryTitleMissing => println!("Story title is missing."),
-        Warning::PassageMetadataMalformed(p) => println!("Passage \"{}\" metadata is not valid JSON and has been discarded.", p),
-        Warning::PassageTagsMalformed(p) => println!("Passage \"{}\" tags are not valid and have been discarded.", p),
-        Warning::PassageDuplicated(p) => println!("Passage \"{}\" is duplicated, using the last occurrence.", p),
-        Warning::PassageNameMissing => println!("Passage name is missing, passage has been discarded."),
-    }
+        Warning::StoryMetadataMalformed => "Story metadata is not valid JSON and has been discarded.".to_owned(),
+        Warning::StoryTitleMissing => "Story title is missing.".to_owned(),
+        Warning::PassageMetadataMalformed(p) => format!("Passage \"{}\" metadata is not valid JSON and has been discarded.", p),
+        Warning::PassageTagsMalformed(p) => format!("Passage \"{}\" tags are not valid and have been discarded.", p),
+        Warning::PassageDuplicated(p) => format!("Passage \"{}\" is duplicated, using the last occurrence.", p),
+        Warning::PassageNameMissing => "Passage name is missing, passage has been discarded.".to_owned(),
+    }).unwrap();
 }
 
 fn glob(s: &str, parent: PathBuf) -> std::result::Result<Vec<PathBuf>, anyhow::Error> {
@@ -77,28 +77,28 @@ fn process_story_fragment(story: &mut Story, path: &Path, included: &mut Vec<Pat
                             if let Some(s) = m.get("include").and_then(|i| i.as_str()) {
                                 let files = glob(s, path.parent().unwrap().to_path_buf())?;
                                 if files.len() == 0 {
-                                    println!("Warning: No matching file found for pattern: {}", s);
+                                    writeln!(stderr(), "Warning: No matching file found for pattern: {}", s)?;
                                 }
                                 for f in files {
                                     p.content += &read_file(&f)?;
                                 }
                                 continue;
                             }
-                            println!("Warning: [twee-cmd] entry was not a recognized command and has been discarded");
+                            writeln!(stderr(), "Warning: [twee-cmd] entry was not a recognized command and has been discarded")?;
                         }
                         _ => {
-                            println!("Warning: [twee-cmd] entry was neither a string nor an object and has been discarded");
+                            writeln!(stderr(), "Warning: [twee-cmd] entry was neither a string nor an object and has been discarded")?;
                         }
                     }
                 }
             } else {
-                println!("Warning: [twee-cmd] passage is not a JSON array and has been discarded");
+                writeln!(stderr(), "Warning: [twee-cmd] passage is not a JSON array and has been discarded")?;
             }
         }
         if let Some(Value::String(f)) = p.meta.get("include") {
             let files = glob(f, path.parent().unwrap().to_path_buf())?;
             if files.len() == 0 {
-                println!("Warning: No matching file found for pattern: {}", f);
+                writeln!(stderr(), "Warning: No matching file found for pattern: {}", f)?;
             }
             p.content = String::new();
             for f in files {
@@ -112,13 +112,13 @@ fn process_story_fragment(story: &mut Story, path: &Path, included: &mut Vec<Pat
                 if let Some(s) = f.as_str() {
                         let files = glob(s, path.parent().unwrap().to_path_buf())?;
                         if files.len() == 0 {
-                            println!("Warning: No matching file found for pattern: {}", s);
+                            writeln!(stderr(), "Warning: No matching file found for pattern: {}", s)?;
                         }
                         for f in files {
                             p.content += &read_file(&f)?;
                         }
                 } else {
-                    println!("Warning: include entry wasn't a string and has been ignored: {}", serde_json::to_string(f)?);
+                    writeln!(stderr(), "Warning: include entry wasn't a string and has been ignored: {}", serde_json::to_string(f)?)?;
                 }
             }
             p.meta.remove("include");
@@ -148,7 +148,7 @@ fn process_story_fragment(story: &mut Story, path: &Path, included: &mut Vec<Pat
                     if let Some(s) = i.as_str() {
                         let files = glob(s, path.parent().unwrap().to_path_buf())?;
                         if files.len() == 0 {
-                            println!("Warning: No matching file found for pattern: {}", s);
+                            writeln!(stderr(), "Warning: No matching file found for pattern: {}", s)?;
                         }
                         for twee in files {
                             if ! included.contains(&twee.canonicalize()?) {
@@ -165,12 +165,12 @@ fn process_story_fragment(story: &mut Story, path: &Path, included: &mut Vec<Pat
                             }
                         }
                     } else {
-                        println!("Warning: include entry wasn't a string and has been ignored: {}", serde_json::to_string(i)?);
+                        writeln!(stderr(), "Warning: include entry wasn't a string and has been ignored: {}", serde_json::to_string(i)?)?;
                     }
                 }
             }
         } else {
-            println!("Warning: TweeTools passage is not a JSON object and has been discarded");
+            writeln!(stderr(), "Warning: TweeTools passage is not a JSON object and has been discarded")?;
         }
     }
     Ok(())
