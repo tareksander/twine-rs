@@ -1,13 +1,11 @@
 
-use std::{fs::{read_dir, File, ReadDir}, io::{Read, Write}, path::{Path, PathBuf}, sync::OnceLock, time::Duration};
+use std::{fs::File, io::{Read, Write}, path::PathBuf, sync::OnceLock, time::Duration};
 
 use anyhow::Ok;
 use clap::{Parser, Subcommand, ValueEnum};
 use notify::{Event, Watcher};
 use rand::{RngCore, SeedableRng};
-use serde::Deserialize;
-use thiserror::Error;
-use twee_parser::{parse_archive, parse_html, parse_twee3, serde_json::{Map, Value}, serialize_html, serialize_twee3, xmltree::EmitterConfig, Passage, Warning};
+use twee_parser::{parse_archive, parse_html, parse_twee3, serde_json::Value, serialize_html, serialize_twee3, xmltree::EmitterConfig};
 
 const DEFAULT_CONFIG: &str = include_str!("../config.toml.default");
 const DEFAULT_TWEE: &str = include_str!("../story.twee.default");
@@ -19,19 +17,14 @@ static FORMAT_CHAPBOOK: OnceLock<String> = OnceLock::new();
 static FORMAT_SNOWMAN: OnceLock<String> = OnceLock::new();
 static FORMAT_SUGARCUBE: OnceLock<String> = OnceLock::new();
 
+mod build;
+use build::*;
 
-
-#[derive(Deserialize)]
-struct Config {
-    output: Option<String>,
-    style: Vec<String>,
-    script: Vec<String>,
-    twee_files: toml::Value,
-}
 
 
 /// A compiler for Twine Stories
 /// 
+/// For a complete reference, visit https://github.com/tareksander/twine-rs/blob/main/twee-tools/README.md
 #[derive(Debug, Parser)]
 #[command(version)]
 struct Cli {
@@ -140,31 +133,11 @@ enum Command {
 }
 
 
-#[derive(Error, Debug)]
-enum Error {
-    #[error("Could not open file: {0}")]
-    FileNotFound(String),
-    #[error("Could not open directory: {0}")]
-    DirNotFound(String),
-    #[error("Unknown story format: {0}")]
-    UnknownStoryFormat(String),
-}
 
 type Result = anyhow::Result<(), anyhow::Error>;
 
 
 
-fn print_warning(w: Warning) {
-    print!("Warning: ");
-    match w {
-        Warning::StoryMetadataMalformed => println!("Story metadata is not valid JSON and has been discarded."),
-        Warning::StoryTitleMissing => println!("Story title is missing."),
-        Warning::PassageMetadataMalformed(p) => println!("Passage \"{}\" metadata is not valid JSON and has been discarded.", p),
-        Warning::PassageTagsMalformed(p) => println!("Passage \"{}\" tags are not valid and have been discarded.", p),
-        Warning::PassageDuplicated(p) => println!("Passage \"{}\" is duplicated, using the last occurrence.", p),
-        Warning::PassageNameMissing => println!("Passage name is missing, passage has been discarded."),
-    }
-}
 
 
 fn unpack(file: PathBuf, dir: PathBuf) -> Result {
@@ -270,56 +243,14 @@ fn init(dir: PathBuf, format: StoryFormat, title: String) -> Result {
 }
 
 
-fn read_file<P>(p: P) -> anyhow::Result<String>  where P: AsRef<Path> {
-    let mut f = File::open(p)?;
-    let mut s = String::new();
-    f.read_to_string(&mut s)?;
-    Ok(s)  
-}
 
-fn search_twee(twees: &mut Vec<PathBuf>, dir: ReadDir) -> Result {
-    for e in dir {
-        let e = e?;
-        let p = e.path();
-        if e.metadata()?.is_dir() {
-            search_twee(twees, read_dir(p.clone())?)?;
-        }
-        if e.metadata()?.is_file() {
-            if p.to_string_lossy().ends_with(".twee") || p.to_string_lossy().ends_with(".tw") {
-                twees.push(p);
-            }
-        }
-    }
-    Ok(())
-}
 
 fn build(debug: bool) -> anyhow::Result<PathBuf> {
     if ! PathBuf::from("config.toml").exists() {
         return Err(Error::FileNotFound("config.toml".to_string()).into());
     }
     let config: Config = toml::from_str(&read_file("config.toml")?)?;
-    let mut twee: Vec<PathBuf> = Vec::new();
-    if let toml::Value::Array(f) = config.twee_files {
-        for v in f {
-            if let toml::Value::String(s) = v {
-                let p = PathBuf::from(s);
-                if p.is_relative() {
-                    twee.push(p);
-                }
-            }
-        }
-    } else {
-        search_twee(&mut twee, read_dir(".")?)?;
-    }
-    let twee = twee.into_iter().map(|f| read_file(f)).collect::<std::result::Result<Vec<String>, anyhow::Error>>()?.join("\n");
-    let (mut story, warnings) = parse_twee3(&twee)?;
-    if debug {
-        story.meta.insert("options".to_string(), "debug".into());
-    }
-    for w in warnings {
-        print_warning(w);
-    }
-    
+    let story = build_story(&config, debug)?;
     let format = {
         if let Some(Value::String(s)) = story.meta.get("format") {
             StoryFormat::from_name(s)?
@@ -328,43 +259,6 @@ fn build(debug: bool) -> anyhow::Result<PathBuf> {
             return Err(Error::UnknownStoryFormat("".to_string()).into());
         }
     };
-    
-    if story.title.is_empty() {
-        story.title = "Story".to_string();
-    }
-    
-    for p in &mut story.passages {
-        if let Some(Value::String(f)) = p.meta.get("include") {
-            p.content = read_file(f)?;
-        }
-        if let Some(Value::String(f)) = p.meta.get("include-before") {
-            p.content = read_file(f)? + &p.content;
-        }
-        if let Some(Value::String(f)) = p.meta.get("include-after") {
-            p.content += &read_file(f)?;
-        }
-    }
-    
-    let mut i = 0;
-    for f in config.script {
-        i += 1;
-        story.passages.push(Passage {
-            name: "script".to_string() + &i.to_string(),
-            tags: vec!["script".to_string()],
-            meta: Map::new(),
-            content: read_file(f)?
-        });
-    }
-    let mut i = 0;
-    for f in config.style {
-        i += 1;
-        story.passages.push(Passage {
-            name: "stylesheet".to_string() + &i.to_string(),
-            tags: vec!["stylesheet".to_string()],
-            meta: Map::new(),
-            content: read_file(f)?
-        });
-    }
     let out = if let Some(out) = config.output {
         PathBuf::from(out)
     } else {
@@ -395,10 +289,10 @@ fn watch(debug: bool) -> Result {
             return;
         }
         match event.kind {
-            notify::EventKind::Modify(m) => {
+            notify::EventKind::Modify(_m) => {
                 out = build(debug).unwrap().canonicalize().unwrap();
             },
-            notify::EventKind::Remove(r) => {
+            notify::EventKind::Remove(_r) => {
                 out = build(debug).unwrap().canonicalize().unwrap();
             },
             _ => {}

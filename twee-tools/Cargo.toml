@@ -1,6 +1,6 @@
 [package]
 name = "twee-tools"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 license = "MPL-2.0"
 description = "A compiler for Twine stories"
@@ -21,6 +21,7 @@ thiserror = "1.0.56"
 rand = "0.8.5"
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
+glob = "0.3.1"
 
 [[bin]]
 name = "twee"

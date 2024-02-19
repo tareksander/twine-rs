@@ -1,5 +1,5 @@
 # This is a configuration file for twee-tools.
-# For information on that project, visit: 
+# For information on that project, visit: https://github.com/tareksander/twine-rs/blob/main/twee-tools/README.md
 # For information about the TOML file format for this config file, see: https://toml.io/en/
 
 
@@ -13,11 +13,8 @@ style = ["story.css"]
 # The story script files. By default only story.js.
 script = ["story.js"]
 
-# The .twee files that will be build. true signifies that all .twee files and in all subdirectories should be used.
-twee_files = true
-
-# In this form, only first.twee and second.twee would be included.
-# twee_files = ["first.twee", "second.twee"]
+# The main twee file the compiler will look for.
+main = "story.twee"
 
 
 
