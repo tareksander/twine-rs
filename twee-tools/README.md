@@ -1,4 +1,4 @@
-# Twee-Tools
+# Twee Tools
 
 [![Crates.io Version](https://img.shields.io/crates/v/twee-tools)](https://crates.io/crates/twee-tools)
 ![Crates.io License](https://img.shields.io/crates/l/twee-tools)
@@ -16,6 +16,10 @@ Tools:
 
 To find out about a command's exact usage, use the -h or --help options.  
 `build` and `watch` also accept a -d or --debug option, which turns on the story format's debug mode.
+
+### Installation
+
+Install [Rust](https://www.rust-lang.org/tools/install), then run `cargo install twee-tools` in a terminal.
 
 ### Features
 
