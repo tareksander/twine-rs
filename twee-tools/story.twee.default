@@ -10,6 +10,6 @@ The start of your story.
 
 :: TweeTools
 {
-    "include": [ "**.twee" ]
+    "include": [ "**/.twee" ]
 }
 
