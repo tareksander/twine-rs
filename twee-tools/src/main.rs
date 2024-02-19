@@ -125,10 +125,18 @@ enum Command {
     },
     
     /// Builds the Story in the current directory.
-    Build,
+    Build {
+        /// Enables the debug mode of the story format.
+        #[arg(short, long)]
+        debug: bool,
+    },
     
     /// Builds the Story in the current directory on any changes.
-    Watch,
+    Watch {
+        /// Enables the debug mode of the story format.
+        #[arg(short, long)]
+        debug: bool,
+    },
 }
 
 
@@ -285,7 +293,7 @@ fn search_twee(twees: &mut Vec<PathBuf>, dir: ReadDir) -> Result {
     Ok(())
 }
 
-fn build() -> anyhow::Result<PathBuf> {
+fn build(debug: bool) -> anyhow::Result<PathBuf> {
     if ! PathBuf::from("config.toml").exists() {
         return Err(Error::FileNotFound("config.toml".to_string()).into());
     }
@@ -305,6 +313,9 @@ fn build() -> anyhow::Result<PathBuf> {
     }
     let twee = twee.into_iter().map(|f| read_file(f)).collect::<std::result::Result<Vec<String>, anyhow::Error>>()?.join("\n");
     let (mut story, warnings) = parse_twee3(&twee)?;
+    if debug {
+        story.meta.insert("options".to_string(), "debug".into());
+    }
     for w in warnings {
         print_warning(w);
     }
@@ -370,8 +381,8 @@ fn build() -> anyhow::Result<PathBuf> {
 }
 
 
-fn watch() -> Result {
-    let mut out = build()?.canonicalize()?;
+fn watch(debug: bool) -> Result {
+    let mut out = build(debug)?.canonicalize()?;
     let mut w = notify::recommended_watcher(move |e: std::result::Result<Event, notify::Error>| {
         let event = e.unwrap();
         if event.paths.iter().any(|p| {
@@ -385,10 +396,10 @@ fn watch() -> Result {
         }
         match event.kind {
             notify::EventKind::Modify(m) => {
-                out = build().unwrap().canonicalize().unwrap();
+                out = build(debug).unwrap().canonicalize().unwrap();
             },
             notify::EventKind::Remove(r) => {
-                out = build().unwrap().canonicalize().unwrap();
+                out = build(debug).unwrap().canonicalize().unwrap();
             },
             _ => {}
         }
@@ -410,10 +421,10 @@ fn main() -> Result {
         Command::Unpack { file, dir } => unpack(file, PathBuf::from(dir))?,
         Command::Decompile { file, out } => decompile(file, out)?,
         Command::Init { dir , format, title} => init(dir, format, title)?,
-        Command::Build => {
-            build()?;
+        Command::Build{debug} => {
+            build(debug)?;
         },
-        Command::Watch => watch()?,
+        Command::Watch{debug} => watch(debug)?,
     }
     Ok(())
 }
