@@ -1,5 +1,5 @@
 
-use std::{fs::File, io::{stderr, Read, Write}, path::PathBuf, sync::OnceLock, time::Duration};
+use std::{fs::File, io::{stderr, Read, Write}, path::PathBuf, sync::OnceLock, thread::sleep, time::Duration};
 
 use anyhow::Ok;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -308,7 +308,9 @@ fn watch(debug: bool) -> Result {
     })?;
     w.configure(notify::Config::default().with_poll_interval(Duration::from_secs(1)))?;
     w.watch(&PathBuf::from("."), notify::RecursiveMode::Recursive)?;
-    loop {}
+    loop {
+        sleep(Duration::from_secs(1));
+    }
 }
 
 fn main() -> Result {
