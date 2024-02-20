@@ -46,6 +46,9 @@ pub enum Error {
     #[error("No tw-storydata tag found in HTML")]
     #[cfg(feature = "html")]
     HTMLStoryDataNotFound,
+    /// Error while parsing a JSON story.
+    #[error("Could not deserialize JSON story: {0}")]
+    JSONParseError(serde_json::Error),
 }
 
 /// Possible warnings during parsing.  
@@ -69,9 +72,11 @@ pub enum Warning {
     PassageNameMissing,
 }
 
-mod twee3;
 use thiserror::Error;
+mod twee3;
 pub use twee3::*;
+mod json;
+pub use json::*;
 
 #[cfg(feature = "html")]
 mod html;
