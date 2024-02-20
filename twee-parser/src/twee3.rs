@@ -11,7 +11,8 @@ enum PassageState {
 
 /// Parses Twee3 into a [Story].
 pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
-    let re = RegexBuilder::new("^::[^\n]*\n").multi_line(true).build().unwrap();
+    let passage_start = RegexBuilder::new("^::[^\n]*\n").multi_line(true).build().unwrap();
+    let passage_escape = RegexBuilder::new("^\\::").multi_line(true).build().unwrap();
     let mut warnings = vec![];
     let mut passages: Vec<Passage> = Vec::new();
     let mut start = 0;
@@ -82,14 +83,12 @@ pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
             }
         }
     }
-    while let Some(a) = re.find_at(source, start) {
+    while let Some(a) = passage_start.find_at(source, start) {
         if start != 0 {
             let name: String = name.iter().collect();
             let name = name.trim().to_string();
-            let mut content = source[start..(a.start())].to_string();
-            if content.starts_with("\\::") {
-                content.remove(0);
-            }
+            let content = source[start..(a.start())].to_string();
+            let content = passage_escape.replace_all(&content, "::");
             handle_passage(&mut warnings, &mut title, &mut story_meta, &mut passages, &name, &content, &tags, meta);
         }
         start = a.start() + 2;
@@ -180,10 +179,8 @@ pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
     if ! name.is_empty() {
         let name: String = name.iter().collect();
         let name = name.trim().to_string();
-        let mut content = source[start..].to_string();
-        if content.starts_with("\\::") {
-            content.remove(0);
-        }
+        let content = source[start..].to_string();
+        let content = passage_escape.replace_all(&content, "::");
         handle_passage(&mut warnings, &mut title, &mut story_meta, &mut passages, &name, &content, &tags, meta);
     }
     if title.is_empty() {
@@ -199,6 +196,7 @@ pub fn parse_twee3(source: &str) -> Result<(Story, Vec<Warning>), Error> {
 
 /// Serializes a [Story] into Twee3.
 pub fn serialize_twee3(story: &Story) -> String {
+    let passage_escape = RegexBuilder::new("^::").multi_line(true).build().unwrap();
     let escape = |t: &String| {
         t.replace("\\", "\\\\")
         .replace("[", "\\[")
@@ -229,10 +227,8 @@ pub fn serialize_twee3(story: &Story) -> String {
             res.push('}');
         }
         res.push('\n');
-        if p.content.starts_with("::") {
-            res.push('\\');
-        }
-        res.extend(p.content.chars());
+        let content = passage_escape.replace_all(&p.content, "\\::");
+        res.extend(content.chars());
         res.push('\n');
     }
     return res.into_iter().collect();
