@@ -56,6 +56,7 @@ A passage with the tag `twee-cmd` will be interpreted as a series of commands to
 This passage can be used for additional includes. It is formatted as a JSON object like the StoryData passage.
 
 - `"include"`: Includes a list of Twee files in the story. Paths from commands in the files will be interpreted relative to the file's directory. The files can even have their own TweeTools passages with includes. The compiler ensures that each twee file is only included once.
+- `"include-archive"`: Includes a Twine Archive in the story.
 
 
 

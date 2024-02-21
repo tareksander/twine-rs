@@ -16,6 +16,6 @@ script = ["story.js"]
 # The main twee file the compiler will look for.
 main = "story.twee"
 
-
-
+# An additional command that gets run before the build process.
+prebuild = ["command", "arguments"]
 

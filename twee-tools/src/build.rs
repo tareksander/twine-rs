@@ -4,7 +4,7 @@ use glob::MatchOptions;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 use thiserror::Error;
-use twee_parser::{parse_twee3, Passage, Story, Warning};
+use twee_parser::{parse_archive, parse_twee3, Passage, Story, Warning};
 
 
 
@@ -16,6 +16,7 @@ pub struct Config {
     pub style: Vec<String>,
     pub script: Vec<String>,
     pub main: String,
+    pub prebuild: Vec<String>
 }
 
 #[derive(Error, Debug)]
@@ -26,6 +27,8 @@ pub enum Error {
     DirNotFound(String),
     #[error("Unknown story format: {0}")]
     UnknownStoryFormat(String),
+    #[error("Prebuild command exited with error")]
+    PrebuildError
 }
 
 pub(crate) fn read_file<P>(p: P) -> anyhow::Result<String>  where P: AsRef<Path> {
@@ -163,6 +166,28 @@ fn process_story_fragment(story: &mut Story, path: &Path, included: &mut Vec<Pat
                                 included.push(twee.canonicalize()?);
                                 process_story_fragment(&mut part, &twee, included)?;
                             }
+                        }
+                    } else {
+                        writeln!(stderr(), "Warning: include entry wasn't a string and has been ignored: {}", serde_json::to_string(i)?)?;
+                    }
+                }
+            }
+            if let Some(includes) = contents.get("include-archive").and_then(|i| i.as_array()) {
+                for i in includes {
+                    if let Some(f) = i.as_str() {
+                        let f = PathBuf::from(f.to_string());
+                        let stories = parse_archive(&read_file(&f)?)?;
+                        for s in stories {
+                            let (mut part, warnings) = s;
+                            for w in warnings {
+                                match &w {
+                                    Warning::StoryMetadataMalformed => {},
+                                    Warning::StoryTitleMissing => {},
+                                    _ => print_warning(w)
+                                }
+                            }
+                            included.push(f.canonicalize()?);
+                            process_story_fragment(&mut part, &f, included)?;
                         }
                     } else {
                         writeln!(stderr(), "Warning: include entry wasn't a string and has been ignored: {}", serde_json::to_string(i)?)?;

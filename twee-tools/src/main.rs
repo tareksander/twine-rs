@@ -1,5 +1,5 @@
 
-use std::{fs::File, io::{stderr, Read, Write}, path::PathBuf, sync::OnceLock, thread::sleep, time::Duration};
+use std::{fs::File, io::{stderr, Read, Write}, path::PathBuf, process::Stdio, sync::OnceLock, thread::sleep, time::Duration};
 
 use anyhow::Ok;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -254,6 +254,15 @@ fn build(debug: bool) -> anyhow::Result<PathBuf> {
         return Err(Error::FileNotFound("config.toml".to_string()).into());
     }
     let config: Config = toml::from_str(&read_file("config.toml")?)?;
+    if ! config.prebuild.is_empty() {
+        let mut c = std::process::Command::new(config.prebuild[0].clone());
+        c.args(&config.prebuild[1..]);
+        c.stdin(Stdio::null());
+        let mut c = c.spawn()?;
+        if ! c.wait()?.success() {
+            return Err(Error::PrebuildError.into());
+        }
+    }
     let story = build_story(&config, debug)?;
     let format = {
         if let Some(Value::String(s)) = story.meta.get("format") {
