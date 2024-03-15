@@ -17,5 +17,5 @@ script = ["story.js"]
 main = "story.twee"
 
 # An additional command that gets run before the build process.
-prebuild = ["command", "arguments"]
-
+# prebuild = ["command", "arguments"]
+prebuild = []
