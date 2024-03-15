@@ -306,9 +306,11 @@ fn watch(debug: bool) -> Result {
         }
         match event.kind {
             notify::EventKind::Modify(_m) => {
+                sleep(Duration::from_millis(100));
                 out = build(debug).unwrap().canonicalize().unwrap();
             },
             notify::EventKind::Remove(_r) => {
+                sleep(Duration::from_millis(100));
                 out = build(debug).unwrap().canonicalize().unwrap();
             },
             _ => {}
